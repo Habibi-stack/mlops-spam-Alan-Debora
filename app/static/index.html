@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Classificador de spam</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <div>
+        <p class="eyebrow">MLOps e Deploy</p>
+        <h1>Classificador de spam</h1>
+      </div>
+      <div class="badges">
+        <span id="versionBadge" class="badge">versão —</span>
+        <span id="healthBadge" class="badge">Verificando serviço</span>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="panel">
+        <label for="apiKey">Chave de API</label>
+        <input id="apiKey" type="password" placeholder="Digite a chave fornecida pelo ambiente">
+
+        <label for="message">Mensagem</label>
+        <textarea id="message" rows="7" placeholder="Digite uma mensagem para classificar..."></textarea>
+
+        <div class="actions">
+          <button id="classifyBtn" type="button">Classificar</button>
+          <button id="spamBtn" class="secondary" type="button">Exemplo spam</button>
+          <button id="commonBtn" class="secondary" type="button">Exemplo comum</button>
+        </div>
+      </div>
+
+      <aside class="panel result-panel">
+        <p class="eyebrow">Resultado</p>
+        <div id="resultLabel" class="result-label">Aguardando</div>
+        <p id="resultVersion" class="muted">respondido pela —</p>
+
+        <div class="probability-head">
+          <span>Probabilidade</span>
+          <strong id="probabilityValue">—</strong>
+        </div>
+        <div class="bar"><div id="probabilityBar" class="bar-fill"></div></div>
+
+        <div id="errorBox" class="error" role="alert" hidden></div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
