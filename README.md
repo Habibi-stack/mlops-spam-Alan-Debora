@@ -1,5 +1,8 @@
 # Classificador de spam: repositório-base da atividade "Do notebook à produção"
 
+> [!IMPORTANT]
+> **Documentação de Entrega da Dupla:** Consulte o [README_DUPLA.md](README_DUPLA.md) para detalhes da arquitetura, instruções de execução local, suíte de testes automatizados e acesso à aplicação em produção: [https://mlops-spam-alan-debora-1.onrender.com](https://mlops-spam-alan-debora-1.onrender.com)
+
 Componente curricular **MLOps e Deploy** · Atividade em **dupla**
 
 ## 1. A história

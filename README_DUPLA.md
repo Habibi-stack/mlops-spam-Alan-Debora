@@ -137,23 +137,23 @@ API_KEY=<chave fictícia criada no painel>
 
 Use o mesmo valor de `API_KEY` apenas no campo da página web durante os testes. Nunca inclua a chave no JavaScript ou no repositório.
 
-URL pública: **preencher após o deploy**
+URL pública: https://mlops-spam-alan-debora-1.onrender.com
 
 ## Organização dos integrantes
 
 - **Alan Lucas Correa de Castro** — [`Habibi-stack`](https://github.com/Habibi-stack) — API, modelo e publicação.
 - **Débora Batista** — [`deborabatista1409`](https://github.com/deborabatista1409) — página web, documentação e testes.
 
-## URL pública
+## URL pública em Produção
 
-A URL do serviço no Render será registrada após o deploy:
+A aplicação está disponível e acessível publicamente em:
 
 ```text
-https://<nome-do-servico>.onrender.com
+https://mlops-spam-alan-debora-1.onrender.com
 ```
 
-## Responsabilidades
+- **Interface Web:** https://mlops-spam-alan-debora-1.onrender.com/
+- **Saúde (Healthcheck):** https://mlops-spam-alan-debora-1.onrender.com/health
+- **Documentação Swagger:** https://mlops-spam-alan-debora-1.onrender.com/docs
 
-- Alan: API, modelo e publicação.
-- Débora: interface, documentação e testes.
 
