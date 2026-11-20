@@ -15,7 +15,7 @@ load_dotenv()
 
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
 APP_ENV = os.getenv("APP_ENV", "dev")
-API_KEY = os.getenv("API_KEY")
+API_KEY = os.getenv("API_KEY", "chave-ficticia-123")
 MODEL_PATH = Path(
     os.getenv("MODEL_PATH", str(Path(__file__).resolve().parent.parent / "model" / "modelo.joblib"))
 )
@@ -40,9 +40,8 @@ def predict(msg: Mensagem, x_api_key: str | None = Header(default=None)):
     if not texto:
         raise HTTPException(status_code=422, detail="O texto não pode estar vazio")
 
-    if API_KEY:
-        if x_api_key != API_KEY:
-            raise HTTPException(status_code=401, detail="Chave de API inválida")
+    if not x_api_key or x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Chave de API inválida ou ausente")
 
     probabilidades = modelo.predict_proba([texto])[0]
     indice = int(probabilidades.argmax())

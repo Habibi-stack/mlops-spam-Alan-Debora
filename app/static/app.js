@@ -37,6 +37,13 @@ function clearResult() {
 
 async function classify() {
   clearResult();
+  const chave = apiKey.value.trim();
+  if (!chave) {
+    showError('A Chave de API é obrigatória. Digite a chave antes de classificar.');
+    apiKey.focus();
+    return;
+  }
+
   const texto = message.value.trim();
   if (!texto) {
     showError('Digite uma mensagem antes de classificar.');
@@ -51,7 +58,7 @@ async function classify() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': apiKey.value
+        'X-API-Key': chave
       },
       body: JSON.stringify({ texto })
     });
@@ -62,7 +69,7 @@ async function classify() {
         const errorData = await response.json();
         detail = errorData.detail || detail;
       } catch (_) {}
-      if (response.status === 401) detail = '401 — chave de API inválida ou ausente.';
+      if (response.status === 401) detail = '401 — Chave de API inválida ou ausente.';
       if (response.status >= 500) detail = 'Erro interno da API. Tente novamente.';
       throw new Error(detail);
     }
