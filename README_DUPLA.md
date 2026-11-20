@@ -43,7 +43,7 @@ Acesse:
 |---|---|---|
 | `MODEL_VERSION` | Não; padrão `v1` | Versão exibida no `/health` e `/predict` |
 | `APP_ENV` | Não; padrão `dev` | Ambiente exibido pelo `/health` |
-| `API_KEY` | Não | Quando definida, protege o `/predict` |
+| `API_KEY` | Sim (padrão `chave-ficticia-123`) | Protege obrigatoriamente o `/predict` via header `X-API-Key` |
 | `MODEL_PATH` | Não | Caminho opcional do arquivo `.joblib` |
 
 Exemplo local:
@@ -86,7 +86,7 @@ Resposta:
 {"rotulo":"spam","probabilidade":0.67,"versao":"v1"}
 ```
 
-Texto vazio retorna 422. Sem a chave correta quando `API_KEY` está definida, retorna 401.
+Texto vazio retorna 422. Requisições sem a chave correta no cabeçalho `X-API-Key` retornam 401.
 
 ## Testes rápidos
 
