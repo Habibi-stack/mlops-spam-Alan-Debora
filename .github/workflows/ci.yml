@@ -29,7 +29,7 @@ jobs:
       - name: Executar suíte de testes com pytest
         env:
           APP_ENV: test
-          MODEL_VERSION: v1
+          MODEL_VERSION: v2
           API_KEY: chave-teste-ci
         run: |
           pytest -v

@@ -22,7 +22,7 @@ EXPOSE 8000
 
 # Variaveis de ambiente padrao (podem ser substituidas em execucao)
 ENV APP_ENV=dev
-ENV MODEL_VERSION=v1
+ENV MODEL_VERSION=v2
 ENV API_KEY=chave-ficticia-123
 
 # Inicializacao da API via Uvicorn

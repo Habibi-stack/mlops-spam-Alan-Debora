@@ -6,6 +6,6 @@ services:
       - "8000:8000"
     environment:
       - APP_ENV=dev
-      - MODEL_VERSION=v1
+      - MODEL_VERSION=v2
       - API_KEY=chave-ficticia-123
     restart: unless-stopped

@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 # Carrega configuração local do arquivo .env. Em produção, usa as variáveis da plataforma.
 load_dotenv()
 
-MODEL_VERSION = os.getenv("MODEL_VERSION", "v1")
+MODEL_VERSION = os.getenv("MODEL_VERSION", "v2")
 APP_ENV = os.getenv("APP_ENV", "dev")
 API_KEY = os.getenv("API_KEY", "chave-ficticia-123")
 MODEL_PATH = Path(
