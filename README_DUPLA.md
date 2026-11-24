@@ -155,6 +155,52 @@ Os testes cobrem:
 - Pipeline de CI configurado em `.github/workflows/ci.yml` para execução a cada push/PR.
 
 
+## Pipeline CI/CD (Etapa 3 - GitHub Actions)
+
+O projeto possui uma pipeline automatizada de Integração e Entrega Contínua configurada em `.github/workflows/ci.yml`.
+
+### Portões de Qualidade (Quality Gates)
+
+O fluxo é dividido em três estágios sequenciais usando a diretiva `needs`. Cada estágio atua como um portão de qualidade: se a etapa anterior falhar, o pipeline é interrompido imediatamente e o deploy é bloqueado.
+
+1. **Job 1: `testes` (Integração Contínua - CI)**:
+   * Executa em ambiente limpo `ubuntu-latest` com Python 3.11.
+   * Instala dependências do `requirements-dev.txt`.
+   * Roda a suíte de testes com `pytest -v` (valida endpoints `/health`, `/predict`, autenticação via `X-API-Key` e interface `/`).
+   * **Portão:** Se qualquer teste quebrar, o processo para aqui.
+
+2. **Job 2: `empacotar` (Empacotamento de Contêiner)**:
+   * Depende de: `needs: testes`.
+   * Constrói a imagem Docker a partir do `Dockerfile`:
+     ```bash
+     docker build -t spam-service:v1 .
+     ```
+   * **Portão:** Garante que a imagem monta corretamente e todas as dependências do sistema estão íntegras.
+
+3. **Job 3: `deploy` (Entrega/Implantação Contínua - CD)**:
+   * Depende de: `needs: empacotar`.
+   * Executado exclusivamente na branch `main` após push.
+   * Dispara o webhook do Render (Deploy Hook) para atualização automática do ambiente online.
+   * **Portão:** Somente código aprovado em testes e no build Docker chega à produção.
+
+### Configuração do Deploy Hook (Render -> GitHub Secrets)
+
+1. No painel do **Render**, abra seu Web Service.
+2. Acesse **Settings** > **Build & Deploy** > **Deploy Hook**.
+3. Copie a URL do Deploy Hook gerada pelo Render (formato: `https://api.render.com/deploy/srv-...`).
+4. No repositório do **GitHub**, vá em **Settings** > **Secrets and variables** > **Actions**.
+5. Clique em **New repository secret**, nomeie como `DEPLOY_HOOK_URL` e cole a URL copiada.
+
+### Registro de Evidências (Critérios de Aceite)
+
+- **Execução com Sucesso (Verde):** Acompanhe o workflow na aba **Actions** do GitHub. Todos os três jobs (`testes`, `empacotar`, `deploy`) devem finalizar com status verde.
+- **Execução com Falha Proposital (Vermelha):**
+  1. No arquivo `tests/test_api.py`, altere temporariamente uma asserção (ex: de `assert response.status_code == 200` para `assert response.status_code == 404`).
+  2. Faça commit e push.
+  3. Na aba **Actions**, observe o job `testes` falhar (vermelho) e confirme que os jobs `empacotar` e `deploy` foram cancelados/bloqueados.
+  4. Tire o print/salve o log para comprovação da atuação do portão de qualidade.
+  5. Reative o teste correto, faça commit e push para restabelecer o pipeline verde.
+
 ## Publicação
 
 Publicar como serviço Web no Render apontando para o repositório GitHub. Render foi escolhido por oferecer hospedagem gratuita de API Python, deploy a partir do GitHub e configuração de variáveis de ambiente no painel. O plano gratuito pode hibernar e a primeira requisição pode demorar.

@@ -1,4 +1,4 @@
-name: CI - Testes Automatizados
+name: Pipeline CI/CD - Classificador de Spam
 
 on:
   push:
@@ -7,17 +7,18 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  testes:
+    name: 1. Testes Automatizados (CI)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Configurar Python 3.12
+      - name: Configurar Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Instalar dependências
         run: |
@@ -31,3 +32,35 @@ jobs:
           API_KEY: chave-teste-ci
         run: |
           pytest -v
+
+  empacotar:
+    name: 2. Empacotar Imagem Docker
+    needs: testes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Construir imagem Docker
+        run: |
+          docker build -t spam-service:v1 .
+
+  deploy:
+    name: 3. Deploy Contínuo (Render)
+    needs: empacotar
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Disparar deploy no Render via Deploy Hook
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "Segredo DEPLOY_HOOK_URL nao configurado em Settings > Secrets and variables > Actions."
+            echo "Caso o Render esteja com Auto-Deploy ativo, a atualizacao ocorrera pelo proprio push na branch main."
+          else
+            echo "Disparando webhook de deploy no Render..."
+            curl -X POST "$HOOK"
+          fi
+        env:
+          HOOK: ${{ secrets.DEPLOY_HOOK_URL }}
