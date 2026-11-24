@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    container_name: mlops-spam-api
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=dev
+      - MODEL_VERSION=v1
+      - API_KEY=chave-ficticia-123
+    restart: unless-stopped

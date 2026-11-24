@@ -37,6 +37,44 @@ Acesse:
 - Documentação: http://127.0.0.1:8000/docs
 - Saúde: http://127.0.0.1:8000/health
 
+## Como executar com Docker
+
+### Opção 1: Via Docker CLI direto
+
+1. Construir a imagem Docker:
+```powershell
+docker build -t mlops-spam:v1 .
+```
+
+2. Executar o contêiner mapeando a porta 8000:
+```powershell
+docker run -d -p 8000:8000 --name mlops-spam mlops-spam:v1
+```
+
+3. Verificar logs e status:
+```powershell
+docker ps
+docker logs mlops-spam
+```
+
+4. Parar e remover o contêiner:
+```powershell
+docker stop mlops-spam
+docker rm mlops-spam
+```
+
+### Opção 2: Via Docker Compose
+
+Subir a aplicação em segundo plano:
+```powershell
+docker compose up -d --build
+```
+
+Parar a aplicação:
+```powershell
+docker compose down
+```
+
 ## Variáveis de ambiente
 
 | Variável | Obrigatória | Uso |

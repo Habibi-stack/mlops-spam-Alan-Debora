@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.git/
+.gitignore
+.github/
+.pytest_cache/
+tests/
+cetam-disciplina-mlops-e-deploy/
+docs/
+*.md
