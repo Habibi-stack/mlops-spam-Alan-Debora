@@ -1,174 +1,284 @@
-# Classificador de spam: repositório-base da atividade "Do notebook à produção"
+# Classificador de spam — MLOps e Deploy
 
-> [!IMPORTANT]
-> **Documentação de Entrega da Dupla:** Consulte o [README_DUPLA.md](README_DUPLA.md) para detalhes da arquitetura, instruções de execução local, suíte de testes automatizados e acesso à aplicação em produção: [https://mlops-spam-alan-debora-1.onrender.com](https://mlops-spam-alan-debora-1.onrender.com)
+## O que foi construído
 
-Componente curricular **MLOps e Deploy** · Atividade em **dupla**
+API em FastAPI com os endpoints `/health` e `/predict` e uma página web HTML, CSS e JavaScript servida pela própria API. O modelo TF-IDF + Regressão Logística já treinado é carregado uma vez ao iniciar o serviço.
 
-## 1. A história
+### Escolhas técnicas
 
-Vocês são a "squad de MLOps" de uma startup. Uma cientista de dados criou um **classificador de
-mensagens spam** que funciona no notebook dela. A empresa precisa dele **rodando de forma
-confiável, versionada e monitorada**, com uma página web para testar, e acessível pela internet.
+- **FastAPI:** gera documentação Swagger automaticamente e valida o corpo das requisições.
+- **Uvicorn:** servidor ASGI simples para desenvolvimento e publicação.
+- **HTML/CSS/JavaScript:** página leve, sem framework, sem chave API embutida e sem necessidade de outro serviço.
+- **Página no mesmo domínio:** evita problemas de CORS, pois página e API são servidas pela mesma aplicação.
+- **Variáveis de ambiente:** permitem trocar versão, ambiente e chave sem alterar o código.
 
-Seu trabalho **não** é melhorar o modelo. É colocá-lo em produção sem cair no "funciona só na
-minha máquina". Nesta etapa vocês constroem a API, a página web e publicam a primeira versão.
+## Pré-requisitos
 
-## 2. O modelo
+- Python 3.11 ou 3.12 recomendado
+- scikit-learn 1.8.0 exatamente
+- Git
 
-| | |
-|---|---|
-| **O que faz** | Lê uma mensagem de texto e diz se é `spam` ou `nao_spam`, com a probabilidade |
-| **Para que serve** | Filtrar mensagens indesejadas (golpes, promoções falsas, links suspeitos) |
-| **Tipo** | TF-IDF + Regressão Logística (scikit-learn) |
-| **Arquivo** | `model/modelo.joblib` (poucos KB) |
-| **Dados de treino** | `data/mensagens.csv`: 66 mensagens em português, rotuladas pelo professor |
-| **Entrada** | Um texto |
-| **Saída** | Um rótulo (`spam` ou `nao_spam`) e a probabilidade de cada classe |
+## Como executar localmente
 
-**Limitações (importante):**
-- O conjunto de treino é **pequeno**; o modelo erra com facilidade e as probabilidades são baixas
-  (algo como 0,6 a 0,7). Isso é esperado: a atividade é sobre **entrega e operação**, não sobre acurácia.
-- Para carregar o `.joblib`, é necessário **Python com `scikit-learn==1.8.0`**. Outra versão pode
-  dar erro ou resultados diferentes.
-- Se quiserem retreinar: `pip install -r requirements-treino.txt` e `python model/train.py`.
+No Windows PowerShell:
 
-### Como usar o modelo em Python
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Copy-Item .env.example .env
+uvicorn app.main:app --reload
+```
 
-Veja o arquivo `model/exemplo_uso.py`. Resumo:
+Acesse:
 
-    import joblib
-    modelo = joblib.load("model/modelo.joblib")
-    probabilidades = modelo.predict_proba(["Você ganhou um prêmio! Clique aqui"])[0]
-    rotulo = modelo.classes_[probabilidades.argmax()]      # "spam" ou "nao_spam"
+- Página: http://127.0.0.1:8000/
+- Documentação: http://127.0.0.1:8000/docs
+- Saúde: http://127.0.0.1:8000/health
 
-## 3. O que vocês vão construir
+## Como executar com Docker
 
-    [ Página web ]  --->  [ API de inferência ]  --->  [ Modelo (.joblib) ]
-     (navegador)            /health  /predict
+### Opção 1: Via Docker CLI direto
 
-- **API:** completem o esqueleto em `app/main.py`.
-- **Página web:** sigam o modelo de site em `docs/modelo_de_pagina.md`.
-- **Tecnologias:** **vocês decidem.** A API precisa carregar o modelo `.joblib`, então precisa
-  rodar em **Python** (o esqueleto usa FastAPI, mas Flask também serve). A página pode ser HTML +
-  JavaScript simples ou um framework, e pode ficar junto da API ou em outro serviço.
-  **Anotem e justifiquem** as escolhas no README de vocês.
+1. Construir a imagem Docker:
+```powershell
+docker build -t mlops-spam:v1 .
+```
 
-## 4. Contrato da API (não mudem, a página e as próximas etapas dependem dele)
+2. Executar o contêiner mapeando a porta 8000:
+```powershell
+docker run -d -p 8000:8000 --name mlops-spam mlops-spam:v1
+```
 
-**`GET /health`** devolve status 200 e:
+3. Verificar logs e status:
+```powershell
+docker ps
+docker logs mlops-spam
+```
 
-    {"status": "ok", "versao": "v1", "ambiente": "dev"}
+4. Parar e remover o contêiner:
+```powershell
+docker stop mlops-spam
+docker rm mlops-spam
+```
 
-**`POST /predict`** recebe:
+### Opção 2: Via Docker Compose
 
-    {"texto": "Parabéns! Você ganhou um prêmio, clique no link"}
+Subir a aplicação em segundo plano:
+```powershell
+docker compose up -d --build
+```
 
-e devolve:
+Parar a aplicação:
+```powershell
+docker compose down
+```
 
-    {"rotulo": "spam", "probabilidade": 0.67, "versao": "v1"}
+## Variáveis de ambiente
 
-Regras:
-- Texto vazio deve ser rejeitado (erro 4xx).
-- Se a variável `API_KEY` estiver definida, o `/predict` exige o cabeçalho `X-API-Key` com o
-  mesmo valor; sem ele, responda **401**. O `/health` nunca exige chave.
-- A `versao` vem da variável de ambiente `MODEL_VERSION`.
+| Variável | Obrigatória | Uso |
+|---|---|---|
+| `MODEL_VERSION` | Não; padrão `v1` | Versão exibida no `/health` e `/predict` |
+| `APP_ENV` | Não; padrão `dev` | Ambiente exibido pelo `/health` |
+| `API_KEY` | Sim (padrão `chave-ficticia-123`) | Protege obrigatoriamente o `/predict` via header `X-API-Key` |
+| `MODEL_PATH` | Não | Caminho opcional do arquivo `.joblib` |
 
-## 5. Etapa 1: passo a passo
+Exemplo local:
 
-### 5.1 Preparação
-Este repositório-base é entregue em **pendrive**. Vocês vão criar o repositório da dupla **do zero**
-no GitHub.
+```text
+APP_ENV=dev
+MODEL_VERSION=v1
+API_KEY=chave-ficticia-123
+```
 
-1. Cada pessoa usa sua conta no **GitHub**.
-2. Copiem a pasta do pendrive para o computador de vocês.
-3. Uma pessoa cria um repositório **vazio** no GitHub (sugestão de nome: `mlops-spam-nome1-nome2`).
-   Adicionem a outra pessoa da dupla e **o professor** como colaboradores
-   (*Settings > Collaborators*). O professor informará o usuário dele em sala.
-4. Na pasta copiada, iniciem o Git e enviem o primeiro commit:
+Em produção, use `APP_ENV=test` e configure as variáveis no painel da plataforma de hospedagem. Não coloque a chave real no código ou no repositório.
 
-       git init -b main
-       git add .
-       git commit -m "chore: importa repositório-base"
-       git remote add origin <url-do-repositorio>
-       git push -u origin main
+## Contrato da API
 
-5. A outra pessoa clona o repositório: `git clone <url>`.
-6. Instalem o ambiente:
+### Saúde
 
-       python -m venv .venv
-       source .venv/bin/activate        # no Windows: .venv\Scripts\activate
-       pip install -r requirements.txt
+```text
+GET /health
+```
 
-### 5.2 API
-1. Completem `GET /health` e `POST /predict` em `app/main.py`.
-2. Rodem: `uvicorn app.main:app --reload` e abram `http://localhost:8000/docs` para testar.
-3. Testem com `curl` ou pela página `/docs` (exemplos prontos: veja `model/exemplo_uso.py`).
+Resposta:
 
-### 5.3 Configuração e segredos
-- **Nada de configuração fixa no código.** Leiam tudo de variáveis de ambiente
-  (`MODEL_VERSION`, `APP_ENV`, `API_KEY`).
-- Copiem `.env.example` para `.env` (o `.gitignore` já impede o envio ao Git).
-- A chave de API deste exercício é **fictícia**. Mesmo assim, tratem como segredo: nunca no
-  código nem no repositório. Em produção, ela é configurada na plataforma de hospedagem.
-- `APP_ENV=dev` (na sua máquina) e `APP_ENV=test` (online): o que muda entre os dois?
-  Definam e documentem.
+```json
+{"status":"ok","versao":"v1","ambiente":"dev"}
+```
 
-### 5.4 Página web
-- Sigam `docs/modelo_de_pagina.md`.
-- A página **não deve ter a chave embutida**: o usuário digita a chave em um campo.
-- Testem os casos de erro: chave errada (401), API fora do ar, texto vazio.
+### Predição
 
-### 5.5 Git (os dois fazem commits)
-- **Commits pequenos e frequentes**, com mensagens claras. Exemplos:
-  `feat: implementa endpoint /health` · `fix: trata texto vazio no /predict` · `docs: explica como rodar`.
-- Os **dois** integrantes devem ter commits no histórico. Usem **pareamento**: uma pessoa digita
-  (piloto) e a outra revisa e orienta (copiloto), e troquem a cada tarefa.
-- Antes de começar a trabalhar: `git pull`. Depois de terminar uma tarefa: `git add`, `git commit`, `git push`.
-- Sugestão: uma branch por tarefa e *pull request* no GitHub para a outra pessoa revisar.
+```text
+POST /predict
+X-API-Key: chave-ficticia-123
+Content-Type: application/json
 
-### 5.6 Publicar online
-Com internet, vocês vão testar **localmente e online**. O professor sugere o **Render**, mas a escolha é de vocês: escolham uma plataforma de hospedagem
-gratuita para publicar a API e a página. Algumas opções (confiram as condições atuais, pois
-planos gratuitos mudam):
+{"texto":"Parabéns! Você ganhou um prêmio, clique no link"}
+```
 
-| Opção | Observação |
-|---|---|
-| **Render** (sugestão do professor) | Serviços web e sites estáticos gratuitos, publicando direto do GitHub; o serviço gratuito "hiberna" após alguns minutos sem uso, então a primeira requisição pode demorar |
-| **GitHub Pages** | Só para páginas estáticas (a API precisa ficar em outro lugar) |
-| Outras | Pesquisem e justifiquem a escolha |
+Resposta:
 
-Configurem as variáveis de ambiente **na plataforma** (não no código) e anotem a URL.
-Depois, repitam os testes na versão online.
+```json
+{"rotulo":"spam","probabilidade":0.67,"versao":"v1"}
+```
 
-### 5.7 Documentação
-Escrevam um `README` da dupla (substituam este ou criem `README_DUPLA.md`) com: o que foi
-construído, tecnologias escolhidas e por quê, como rodar localmente, variáveis de ambiente
-necessárias, a URL online e quem fez o quê.
+Texto vazio retorna 422. Requisições sem a chave correta no cabeçalho `X-API-Key` retornam 401.
 
-## 6. Entrega e critérios de aceite da Etapa 1
+## Testes rápidos
 
-- [ ] API com `/health` e `/predict` funcionando **localmente**, conforme o contrato
-- [ ] `/predict` devolve 401 sem a chave correta (quando `API_KEY` está definida) e erro 4xx para texto vazio
-- [ ] Página web funcionando localmente, com os itens obrigatórios do modelo de site
-- [ ] Configuração por variáveis de ambiente e `.env.example` presente
-- [ ] Nenhum segredo no repositório (conferir o histórico, não só os arquivos atuais)
-- [ ] Repositório no GitHub com histórico de commits **dos dois integrantes** e o **professor adicionado como colaborador**
-- [ ] Tag **`v1`** criada no commit entregue (`git tag v1 && git push origin v1`)
-- [ ] Primeira versão **publicada online**, testada pela URL pública
-- [ ] README da dupla com instruções, escolhas de tecnologia e URL. **O professor vai clonar o repositório e rodar seguindo só o README**, então ele precisa estar completo (versão do Python, comandos, variáveis de ambiente)
+Com PowerShell:
 
-## 7. O que vem depois
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
 
-Nas próximas etapas vocês vão **empacotar** o serviço (Docker), **implantar** em um cluster local,
-montar um **pipeline de CI/CD**, adicionar **logs e métricas** e, por fim, enfrentar um **incidente
-simulado** com rollback. Por isso, o que vocês construírem agora precisa ser organizado, com
-configuração fora do código e testes fáceis de rodar.
+$body = @{ texto = "Parabéns! Você ganhou um prêmio, clique no link" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/predict -Headers @{ "X-API-Key" = "chave-ficticia-123" } -ContentType "application/json" -Body $body
+```
 
-## 8. Erros comuns
+## Testes Automatizados (QA)
 
-- **`InconsistentVersionWarning` ou erro ao abrir o modelo:** a versão do scikit-learn não é a 1.8.0.
-- **A página não consegue chamar a API estando em outro endereço:** pesquisem sobre **CORS**.
-- **Serviço online demora muito na primeira requisição:** plano gratuito hibernando; é esperado.
-- **Subiram uma chave por engano:** apaguem do código, troquem a chave e avisem o professor.
-  Apagar o arquivo depois do commit não remove a chave do histórico.
+Executar os testes automatizados da API com `pytest`:
+
+```powershell
+pip install -r requirements-dev.txt
+pytest -v
+```
+
+Os testes cobrem:
+- `GET /health`: disponibilidade e integridade do contrato.
+- `GET /ready`: readiness probe do modelo em memória.
+- `GET /metrics`: integridade dos contadores de requisições, erros 5xx e latência.
+- `POST /predict`: inferência com dados válidos e checagem de schema da resposta.
+- `POST /predict`: validação de segurança com `X-API-Key` (401 quando ausente ou inválida).
+- `POST /predict`: validação de payload (422 quando texto vazio ou em branco).
+- `GET /`: carregamento da interface web estática com o Painel de Operação.
+- Pipeline de CI configurado em `.github/workflows/ci.yml` para execução a cada push/PR.
+
+## Observabilidade (Etapa 4 - Aula 06)
+
+A aplicação conta com observabilidade nativa baseada nos três pilares (Logs, Métricas e Traces simples):
+
+### 1. Logs Estruturados em JSON (stdout)
+Cada requisição gera um registro padronizado em JSON na saída padrão (stdout), facilitando a coleta por contêineres e ferramentas de monitoramento:
+```json
+{"hora": "21:30:05", "nivel": "INFO", "mensagem": "requisicao atendida", "rota": "/predict", "status": 200, "id_req": "d1e2...", "ms": 4.12}
+```
+* **Privacidade e Segurança:** Chaves de API e textos de mensagens completas nunca são logados (conforme boas práticas do Slide 19).
+
+### 2. Rota `/metrics` (Métricas do Serviço)
+Endpoint `GET /metrics` que retorna os contadores do serviço em tempo real:
+```json
+{
+  "requisicoes": 109,
+  "erros_5xx": 0,
+  "latencia_media_ms": 2.0
+}
+```
+
+### 3. Painel de Operação na Interface Web
+A página inicial (`/`) inclui uma seção de **Painel de Operação** com:
+* **Indicadores em tempo real:** Contadores de total de requisições, erros 5xx e latência média em milissegundos.
+* **Gerador de carga:** Botão **"Enviar 50 requisições"** para estressar a API e demonstrar a atualização instantânea das métricas e dos logs no contêiner.
+
+### 4. Como inspecionar logs no Docker
+Para acompanhar os registros e filtrar incidentes:
+```powershell
+# Acompanhar logs em tempo real
+docker logs -f mlops-spam
+
+# Filtrar apenas erros no PowerShell
+docker logs mlops-spam 2>&1 | Select-String "ERROR"
+```
+
+
+## Pipeline CI/CD (Etapa 3 - GitHub Actions)
+
+O projeto possui uma pipeline automatizada de Integração e Entrega Contínua configurada em `.github/workflows/ci.yml`.
+
+### Portões de Qualidade (Quality Gates)
+
+O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, reproduzindo fielmente o modelo do Slide 9 da Aula 04. Cada estágio atua como um portão de qualidade: se a etapa anterior falhar, o pipeline é interrompido imediatamente e o deploy é bloqueado.
+
+1. **Job 1: `Build` (Instala as dependências)**:
+   * Executa em ambiente limpo `ubuntu-latest` com Python 3.11.
+   * Instala dependências do `requirements.txt` e valida que o projeto compila sem erros de sintaxe (`python -m compileall app/`).
+   * **Portão 1:** Se a instalação ou compilação falhar, o pipeline para aqui.
+
+2. **Job 2: `Testes` (pytest e lint)**:
+   * Depende de: `needs: build`.
+   * Instala dependências de teste e executa a suíte de testes com `pytest -v` (valida endpoints `/health`, `/ready`, `/metrics`, `/predict`, segurança e interface web).
+   * **Portão 2:** Se qualquer teste falhar, o empacotamento é bloqueado.
+
+3. **Job 3: `Empacotar` (docker build e push)**:
+   * Depende de: `needs: testes`.
+   * Constrói a imagem Docker a partir do `Dockerfile`:
+     ```bash
+     docker build -t spam-service:v1 .
+     ```
+   * **Portão 3:** Garante que a imagem monta corretamente antes de qualquer tentativa de deploy.
+
+4. **Job 4: `Deploy (teste)` (Publica no ambiente de teste)**:
+   * Depende de: `needs: empacotar`.
+   * Executado exclusivamente em push na branch `main` ou tags de versão (`v*`).
+   * Dispara o webhook do Render (Deploy Hook via segredo `DEPLOY_HOOK_URL`) para atualizar o serviço online.
+
+### Configuração do Deploy Hook (Render -> GitHub Secrets)
+
+1. No painel do **Render**, abra seu Web Service.
+2. Acesse **Settings** > **Build & Deploy** > **Deploy Hook**.
+3. Copie a URL do Deploy Hook gerada pelo Render (formato: `https://api.render.com/deploy/srv-...`).
+4. No repositório do **GitHub**, vá em **Settings** > **Secrets and variables** > **Actions**.
+5. Clique em **New repository secret**, nomeie como `DEPLOY_HOOK_URL` e cole a URL copiada.
+
+### Registro de Evidências (Critérios de Aceite)
+
+- **Execução com Sucesso (Verde):** Acompanhe o workflow na aba **Actions** do GitHub. Todos os três jobs (`testes`, `empacotar`, `deploy`) devem finalizar com status verde.
+- **Execução com Falha Proposital (Vermelha):**
+  1. No arquivo `tests/test_api.py`, altere temporariamente uma asserção (ex: de `assert response.status_code == 200` para `assert response.status_code == 404`).
+  2. Faça commit e push.
+  3. Na aba **Actions**, observe o job `testes` falhar (vermelho) e confirme que os jobs `empacotar` e `deploy` foram cancelados/bloqueados.
+  4. Tire o print/salve o log para comprovação da atuação do portão de qualidade.
+  5. Reative o teste correto, faça commit e push para restabelecer o pipeline verde.
+
+## Publicação
+
+Publicar como serviço Web no Render apontando para o repositório GitHub. Render foi escolhido por oferecer hospedagem gratuita de API Python, deploy a partir do GitHub e configuração de variáveis de ambiente no painel. O plano gratuito pode hibernar e a primeira requisição pode demorar.
+
+Comando de inicialização no provedor:
+
+```text
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Configure no provedor:
+
+```text
+APP_ENV=test
+MODEL_VERSION=v1
+API_KEY=<chave fictícia criada no painel>
+```
+
+Use o mesmo valor de `API_KEY` apenas no campo da página web durante os testes. Nunca inclua a chave no JavaScript ou no repositório.
+
+URL pública: https://mlops-spam-alan-debora-1.onrender.com
+
+## Organização dos integrantes
+
+- **Alan Lucas Correa de Castro** — [`Habibi-stack`](https://github.com/Habibi-stack) — API, modelo e publicação.
+- **Débora Batista** — [`deborabatista1409`](https://github.com/deborabatista1409) — página web, documentação e testes.
+
+## URL pública em Produção
+
+A aplicação está disponível e acessível publicamente em:
+
+```text
+https://mlops-spam-alan-debora-1.onrender.com
+```
+
+- **Interface Web:** https://mlops-spam-alan-debora-1.onrender.com/
+- **Saúde (Healthcheck):** https://mlops-spam-alan-debora-1.onrender.com/health
+- **Documentação Swagger:** https://mlops-spam-alan-debora-1.onrender.com/docs
+
+
