@@ -148,11 +148,49 @@ pytest -v
 
 Os testes cobrem:
 - `GET /health`: disponibilidade e integridade do contrato.
+- `GET /ready`: readiness probe do modelo em memória.
+- `GET /metrics`: integridade dos contadores de requisições, erros 5xx e latência.
 - `POST /predict`: inferência com dados válidos e checagem de schema da resposta.
 - `POST /predict`: validação de segurança com `X-API-Key` (401 quando ausente ou inválida).
 - `POST /predict`: validação de payload (422 quando texto vazio ou em branco).
-- `GET /`: carregamento da interface web estática.
+- `GET /`: carregamento da interface web estática com o Painel de Operação.
 - Pipeline de CI configurado em `.github/workflows/ci.yml` para execução a cada push/PR.
+
+## Observabilidade (Etapa 4 - Aula 06)
+
+A aplicação conta com observabilidade nativa baseada nos três pilares (Logs, Métricas e Traces simples):
+
+### 1. Logs Estruturados em JSON (stdout)
+Cada requisição gera um registro padronizado em JSON na saída padrão (stdout), facilitando a coleta por contêineres e ferramentas de monitoramento:
+```json
+{"hora": "21:30:05", "nivel": "INFO", "mensagem": "requisicao atendida", "rota": "/predict", "status": 200, "id_req": "d1e2...", "ms": 4.12}
+```
+* **Privacidade e Segurança:** Chaves de API e textos de mensagens completas nunca são logados (conforme boas práticas do Slide 19).
+
+### 2. Rota `/metrics` (Métricas do Serviço)
+Endpoint `GET /metrics` que retorna os contadores do serviço em tempo real:
+```json
+{
+  "requisicoes": 109,
+  "erros_5xx": 0,
+  "latencia_media_ms": 2.0
+}
+```
+
+### 3. Painel de Operação na Interface Web
+A página inicial (`/`) inclui uma seção de **Painel de Operação** com:
+* **Indicadores em tempo real:** Contadores de total de requisições, erros 5xx e latência média em milissegundos.
+* **Gerador de carga:** Botão **"Enviar 50 requisições"** para estressar a API e demonstrar a atualização instantânea das métricas e dos logs no contêiner.
+
+### 4. Como inspecionar logs no Docker
+Para acompanhar os registros e filtrar incidentes:
+```powershell
+# Acompanhar logs em tempo real
+docker logs -f mlops-spam
+
+# Filtrar apenas erros no PowerShell
+docker logs mlops-spam 2>&1 | Select-String "ERROR"
+```
 
 
 ## Pipeline CI/CD (Etapa 3 - GitHub Actions)

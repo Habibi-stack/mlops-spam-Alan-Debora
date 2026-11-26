@@ -17,6 +17,28 @@ def test_health_endpoint():
     assert "ambiente" in data
 
 
+def test_ready_endpoint():
+    """Valida readiness probe: se o modelo foi carregado e responde pronto."""
+    response = client.get("/ready")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "pronto"
+
+
+def test_metrics_endpoint():
+    """Valida se o /metrics responde 200 com os contadores de observabilidade."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    data = response.json()
+    assert "requisicoes" in data
+    assert "erros_5xx" in data
+    assert "latencia_media_ms" in data
+    assert isinstance(data["requisicoes"], int)
+    assert isinstance(data["erros_5xx"], int)
+    assert isinstance(data["latencia_media_ms"], (int, float))
+    assert data["requisicoes"] >= 1
+
+
 def test_predict_sucesso():
     """Valida predição com texto válido e API Key correta."""
     headers = {"X-API-Key": API_KEY} if API_KEY else {}
@@ -60,7 +82,8 @@ def test_predict_texto_vazio_deve_falhar():
 
 
 def test_pagina_web_carrega():
-    """Valida se a rota raiz (/) entrega a página HTML."""
+    """Valida se a rota raiz (/) entrega a página HTML com o painel de operação."""
     response = client.get("/")
     assert response.status_code == 200
     assert "Classificador de spam" in response.text
+    assert "Painel de operação" in response.text
