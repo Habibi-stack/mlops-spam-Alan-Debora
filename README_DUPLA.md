@@ -199,27 +199,30 @@ O projeto possui uma pipeline automatizada de Integração e Entrega Contínua c
 
 ### Portões de Qualidade (Quality Gates)
 
-O fluxo é dividido em três estágios sequenciais usando a diretiva `needs`. Cada estágio atua como um portão de qualidade: se a etapa anterior falhar, o pipeline é interrompido imediatamente e o deploy é bloqueado.
+O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, reproduzindo fielmente o modelo do Slide 9 da Aula 04. Cada estágio atua como um portão de qualidade: se a etapa anterior falhar, o pipeline é interrompido imediatamente e o deploy é bloqueado.
 
-1. **Job 1: `testes` (Integração Contínua - CI)**:
+1. **Job 1: `Build` (Instala as dependências)**:
    * Executa em ambiente limpo `ubuntu-latest` com Python 3.11.
-   * Instala dependências do `requirements-dev.txt`.
-   * Roda a suíte de testes com `pytest -v` (valida endpoints `/health`, `/predict`, autenticação via `X-API-Key` e interface `/`).
-   * **Portão:** Se qualquer teste quebrar, o processo para aqui.
+   * Instala dependências do `requirements.txt` e valida que o projeto compila sem erros de sintaxe (`python -m compileall app/`).
+   * **Portão 1:** Se a instalação ou compilação falhar, o pipeline para aqui.
 
-2. **Job 2: `empacotar` (Empacotamento de Contêiner)**:
+2. **Job 2: `Testes` (pytest e lint)**:
+   * Depende de: `needs: build`.
+   * Instala dependências de teste e executa a suíte de testes com `pytest -v` (valida endpoints `/health`, `/ready`, `/metrics`, `/predict`, segurança e interface web).
+   * **Portão 2:** Se qualquer teste falhar, o empacotamento é bloqueado.
+
+3. **Job 3: `Empacotar` (docker build e push)**:
    * Depende de: `needs: testes`.
    * Constrói a imagem Docker a partir do `Dockerfile`:
      ```bash
      docker build -t spam-service:v1 .
      ```
-   * **Portão:** Garante que a imagem monta corretamente e todas as dependências do sistema estão íntegras.
+   * **Portão 3:** Garante que a imagem monta corretamente antes de qualquer tentativa de deploy.
 
-3. **Job 3: `deploy` (Entrega/Implantação Contínua - CD)**:
+4. **Job 4: `Deploy (teste)` (Publica no ambiente de teste)**:
    * Depende de: `needs: empacotar`.
-   * Executado exclusivamente na branch `main` após push.
-   * Dispara o webhook do Render (Deploy Hook) para atualização automática do ambiente online.
-   * **Portão:** Somente código aprovado em testes e no build Docker chega à produção.
+   * Executado exclusivamente em push na branch `main` ou tags de versão (`v*`).
+   * Dispara o webhook do Render (Deploy Hook via segredo `DEPLOY_HOOK_URL`) para atualizar o serviço online.
 
 ### Configuração do Deploy Hook (Render -> GitHub Secrets)
 
