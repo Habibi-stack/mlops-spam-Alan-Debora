@@ -1,5 +1,6 @@
 """API da atividade de classificação de mensagens spam."""
 
+import hmac
 import json
 import os
 import time
@@ -23,8 +24,6 @@ MODEL_PATH = Path(
     os.getenv("MODEL_PATH", str(Path(__file__).resolve().parent.parent / "model" / "modelo.joblib"))
 )
 
-modelo = joblib.load(MODEL_PATH)
-
 app = FastAPI(title="API de classificação de spam")
 
 # Métricas em memória para Observabilidade (Slides 25 e 26 da Aula 06)
@@ -44,6 +43,13 @@ def log_evento(nivel: str, mensagem: str, **campos):
         **campos,
     }
     print(json.dumps(registro, ensure_ascii=False), flush=True)
+
+
+try:
+    modelo = joblib.load(MODEL_PATH)
+except Exception as exc:
+    modelo = None
+    log_evento("ERROR", "falha ao carregar modelo", caminho=str(MODEL_PATH), erro=str(exc))
 
 
 @app.middleware("http")
@@ -113,8 +119,11 @@ def predict(msg: Mensagem, x_api_key: str | None = Header(default=None)):
     if not texto:
         raise HTTPException(status_code=422, detail="O texto não pode estar vazio")
 
-    if not x_api_key or x_api_key != API_KEY:
+    if not x_api_key or not hmac.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=401, detail="Chave de API inválida ou ausente")
+
+    if modelo is None:
+        raise HTTPException(status_code=503, detail="Modelo nao carregado")
 
     probabilidades = modelo.predict_proba([texto])[0]
     indice = int(probabilidades.argmax())

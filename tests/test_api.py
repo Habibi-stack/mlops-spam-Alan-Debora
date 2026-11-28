@@ -25,6 +25,15 @@ def test_ready_endpoint():
     assert data["status"] == "pronto"
 
 
+def test_ready_retorna_503_sem_modelo(monkeypatch):
+    """Valida readiness probe retornando 503 quando o modelo não está carregado."""
+    import app.main as main_module
+
+    monkeypatch.setattr(main_module, "modelo", None)
+    response = client.get("/ready")
+    assert response.status_code == 503
+
+
 def test_metrics_endpoint():
     """Valida se o /metrics responde 200 com os contadores de observabilidade."""
     response = client.get("/metrics")
