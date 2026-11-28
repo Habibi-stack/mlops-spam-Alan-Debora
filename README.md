@@ -43,12 +43,12 @@ Acesse:
 
 1. Construir a imagem Docker:
 ```powershell
-docker build -t mlops-spam:v1 .
+docker build -t spam-service:v2 .
 ```
 
 2. Executar o contêiner mapeando a porta 8000:
 ```powershell
-docker run -d -p 8000:8000 --name mlops-spam mlops-spam:v1
+docker run -d -p 8000:8000 --name mlops-spam spam-service:v2
 ```
 
 3. Verificar logs e status:
@@ -79,7 +79,7 @@ docker compose down
 
 | Variável | Obrigatória | Uso |
 |---|---|---|
-| `MODEL_VERSION` | Não; padrão `v1` | Versão exibida no `/health` e `/predict` |
+| `MODEL_VERSION` | Não; padrão `v2` | Versão exibida no `/health` e `/predict` |
 | `APP_ENV` | Não; padrão `dev` | Ambiente exibido pelo `/health` |
 | `API_KEY` | Sim (padrão `chave-ficticia-123`) | Protege obrigatoriamente o `/predict` via header `X-API-Key` |
 | `MODEL_PATH` | Não | Caminho opcional do arquivo `.joblib` |
@@ -88,7 +88,7 @@ Exemplo local:
 
 ```text
 APP_ENV=dev
-MODEL_VERSION=v1
+MODEL_VERSION=v2
 API_KEY=chave-ficticia-123
 ```
 
@@ -192,6 +192,73 @@ docker logs -f mlops-spam
 docker logs mlops-spam 2>&1 | Select-String "ERROR"
 ```
 
+## Kubernetes, Probes e Automação (Etapa 4 - Aula 07)
+
+Os manifestos de orquestração ficam na pasta `k8s/`:
+
+- [`k8s/deployment.yaml`](k8s/deployment.yaml): `Deployment` `spam-service` com 2 réplicas, estratégia `RollingUpdate` (`maxUnavailable: 0`, `maxSurge: 1`), `resources` (`requests` de `100m`/`128Mi` e `limits` de `500m`/`256Mi`), `livenessProbe` em `/health` e `readinessProbe` em `/ready`.
+- [`k8s/service.yaml`](k8s/service.yaml): `Service` `spam-service` expondo a porta `80` para a porta `8000` dos pods.
+- [`k8s/cronjob.yaml`](k8s/cronjob.yaml): `CronJob` `verificar-saude` (`*/5 * * * *`) executando checagem interna em `http://spam-service/health`.
+
+### Comandos de operação e diagnóstico no cluster
+
+```powershell
+# Aplicar manifestos (Deployment, Service e CronJob)
+kubectl apply -f k8s/
+
+# Acompanhar pods e inspecionar probes/eventos
+kubectl get pods -w
+kubectl describe pod <nome-do-pod>
+kubectl logs <nome-do-pod>
+kubectl logs --previous <nome-do-pod>
+kubectl get events --sort-by=.metadata.creationTimestamp
+
+# Escalar, atualizar versão e reverter (rollback)
+kubectl scale deployment spam-service --replicas=3
+kubectl set image deployment/spam-service api=spam-service:v2
+kubectl rollout status deployment/spam-service
+kubectl rollout history deployment/spam-service
+kubectl rollout undo deployment/spam-service
+
+# Conferir CronJob e Jobs gerados
+kubectl get cronjobs
+kubectl get jobs
+```
+
+### Script de verificação, alerta e reinício controlado
+
+O script [`scripts/verificar_saude.py`](scripts/verificar_saude.py) consulta `/health`, `/ready` e `/metrics`, emitindo alertas quando o serviço falha 3 vezes seguidas, `erros_5xx > 5` ou `latencia_media_ms > 500 ms`.
+
+Com `--auto-restart`, ele executa `kubectl rollout restart deployment/spam-service` seguindo regras de automação segura (confirmação prévia, modo `--dry-run`, limite `--max-reinicios`, `--cooldown` contra laços de reinício e registro em JSON via `--log-arquivo`):
+
+```powershell
+# Monitoramento contínuo (somente alertas)
+python scripts/verificar_saude.py http://127.0.0.1:8000
+
+# Simulação segura no cluster (dry-run) com log de auditoria
+python scripts/verificar_saude.py http://127.0.0.1:8000 --auto-restart --dry-run --log-arquivo logs/automacao.jsonl
+
+# Execução automatizada com confirmação automática e limite de 2 reinícios
+python scripts/verificar_saude.py http://127.0.0.1:8000 --auto-restart --sim --max-reinicios 2 --cooldown 120
+```
+
+O procedimento escrito para resposta e diagnóstico está documentado em [`docs/runbook.md`](docs/runbook.md).
+
+### Checklist e Evidências da Etapa 4
+
+- [x] Logs estruturados em JSON (`stdout`)
+- [x] Métricas na rota `/metrics` (`requisicoes`, `erros_5xx`, `latencia_media_ms`)
+- [x] Probes de liveness (`/health`) e readiness (`/ready`) com `resources` em `k8s/deployment.yaml`
+- [x] Alerta simples (serviço fora do ar, erros 5xx ou latência média > 500 ms)
+- [x] Tarefa recorrente automatizada (`k8s/cronjob.yaml` e `scripts/verificar_saude.py`)
+- [x] Painel web, logs e runbook (`docs/runbook.md`) para diagnóstico
+
+Evidências recomendadas para registro:
+1. Print do painel web com as métricas atualizadas.
+2. Trecho dos logs estruturados em JSON.
+3. Saída de `kubectl describe pod <nome-do-pod>` exibindo Liveness e Readiness probes.
+4. Saída do script `scripts/verificar_saude.py` ou `kubectl get cronjobs` / `kubectl get jobs`.
+
 
 ## Pipeline CI/CD (Etapa 3 - GitHub Actions)
 
@@ -203,7 +270,7 @@ O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, r
 
 1. **Job 1: `Build` (Instala as dependências)**:
    * Executa em ambiente limpo `ubuntu-latest` com Python 3.11.
-   * Instala dependências do `requirements.txt` e valida que o projeto compila sem erros de sintaxe (`python -m compileall app/`).
+   * Instala dependências do `requirements.txt` e valida que o projeto compila sem erros de sintaxe (`python -m compileall app/ scripts/`).
    * **Portão 1:** Se a instalação ou compilação falhar, o pipeline para aqui.
 
 2. **Job 2: `Testes` (pytest e lint)**:
@@ -215,7 +282,7 @@ O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, r
    * Depende de: `needs: testes`.
    * Constrói a imagem Docker a partir do `Dockerfile`:
      ```bash
-     docker build -t spam-service:v1 .
+     docker build -t spam-service:v2 .
      ```
    * **Portão 3:** Garante que a imagem monta corretamente antes de qualquer tentativa de deploy.
 
@@ -234,7 +301,7 @@ O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, r
 
 ### Registro de Evidências (Critérios de Aceite)
 
-- **Execução com Sucesso (Verde):** Acompanhe o workflow na aba **Actions** do GitHub. Todos os três jobs (`testes`, `empacotar`, `deploy`) devem finalizar com status verde.
+- **Execução com Sucesso (Verde):** Acompanhe o workflow na aba **Actions** do GitHub. Todos os quatro jobs (`build`, `testes`, `empacotar`, `deploy`) devem finalizar com status verde.
 - **Execução com Falha Proposital (Vermelha):**
   1. No arquivo `tests/test_api.py`, altere temporariamente uma asserção (ex: de `assert response.status_code == 200` para `assert response.status_code == 404`).
   2. Faça commit e push.

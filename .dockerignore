@@ -11,4 +11,6 @@ __pycache__/
 tests/
 cetam-disciplina-mlops-e-deploy/
 docs/
+k8s/
+scripts/
 *.md
