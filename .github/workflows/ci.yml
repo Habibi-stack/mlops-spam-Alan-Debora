@@ -62,7 +62,7 @@ jobs:
 
       - name: Construir imagem Docker (docker build)
         run: |
-          docker build -t spam-service:v1 .
+          docker build -t spam-service:v2 .
 
   deploy:
     name: Deploy (teste)

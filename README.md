@@ -43,12 +43,12 @@ Acesse:
 
 1. Construir a imagem Docker:
 ```powershell
-docker build -t mlops-spam:v1 .
+docker build -t spam-service:v2 .
 ```
 
 2. Executar o contêiner mapeando a porta 8000:
 ```powershell
-docker run -d -p 8000:8000 --name mlops-spam mlops-spam:v1
+docker run -d -p 8000:8000 --name mlops-spam spam-service:v2
 ```
 
 3. Verificar logs e status:
@@ -270,7 +270,7 @@ O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, r
 
 1. **Job 1: `Build` (Instala as dependências)**:
    * Executa em ambiente limpo `ubuntu-latest` com Python 3.11.
-   * Instala dependências do `requirements.txt` e valida que o projeto compila sem erros de sintaxe (`python -m compileall app/`).
+   * Instala dependências do `requirements.txt` e valida que o projeto compila sem erros de sintaxe (`python -m compileall app/ scripts/`).
    * **Portão 1:** Se a instalação ou compilação falhar, o pipeline para aqui.
 
 2. **Job 2: `Testes` (pytest e lint)**:
@@ -282,7 +282,7 @@ O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, r
    * Depende de: `needs: testes`.
    * Constrói a imagem Docker a partir do `Dockerfile`:
      ```bash
-     docker build -t spam-service:v1 .
+     docker build -t spam-service:v2 .
      ```
    * **Portão 3:** Garante que a imagem monta corretamente antes de qualquer tentativa de deploy.
 
@@ -301,7 +301,7 @@ O fluxo é dividido em quatro estágios sequenciais usando a diretiva `needs`, r
 
 ### Registro de Evidências (Critérios de Aceite)
 
-- **Execução com Sucesso (Verde):** Acompanhe o workflow na aba **Actions** do GitHub. Todos os três jobs (`testes`, `empacotar`, `deploy`) devem finalizar com status verde.
+- **Execução com Sucesso (Verde):** Acompanhe o workflow na aba **Actions** do GitHub. Todos os quatro jobs (`build`, `testes`, `empacotar`, `deploy`) devem finalizar com status verde.
 - **Execução com Falha Proposital (Vermelha):**
   1. No arquivo `tests/test_api.py`, altere temporariamente uma asserção (ex: de `assert response.status_code == 200` para `assert response.status_code == 404`).
   2. Faça commit e push.
